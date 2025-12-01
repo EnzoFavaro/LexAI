@@ -1,162 +1,171 @@
-# Projeto: IMT Hand Writting Scanner
+# LexAI - Correção Automática de Redações ENEM
 
-## Visão geral
-Um serviço simples e robusto para converter redações manuscritas (português-BR) em texto. O sistema roda em CPU e é exposto via API REST para ser consumido por outros serviços (por exemplo, um serviço externo de correção de textos).
+Sistema de correção automática de redações do ENEM utilizando Inteligência Artificial. O LexAI combina tecnologias de OCR (Reconhecimento Óptico de Caracteres) e processamento de linguagem natural para fornecer correções detalhadas seguindo os critérios oficiais do ENEM.
 
-### Requisitos principais
-- Suportar imagens de redações manuscritas (fotografias e scans).
-- Boa taxa de reconhecimento em português do Brasil (melhor possível com TrOCR e fine-tuning se necessário).
-- Simplicidade e robustez (tratamento de erros, logs, retries leves).
-- Roda em CPU (otimizações: quantização, ONNX, batching, caching).
-- Encapsulado em API (documentada) que retorna texto transcrito e nível de confiança.
-- Armazenamento apenas local (sem uso de cloud ou storage externo).
+## 📋 Sobre o Projeto
 
----
+O LexAI foi desenvolvido como trabalho final para a disciplina **MIN709 - Aplicações em Ciência de Dados**. O projeto visa democratizar o acesso à correção de redações, permitindo que estudantes recebam feedback detalhado e imediato sobre suas redações manuscritas.
 
-## Arquitetura em alto nível
+### Funcionalidades
 
-```
-[Cliente / Scanner / Aplicativo]
-        |
-   (POST image)
-        v
-[API REST (FastAPI)]
-        |
-        +--> Pré-processamento de imagem (OpenCV, Pillow)
-        |
-        +--> OCR (TrOCR - HuggingFace / ONNX CPU)
-        |
-        +--> Pós-processamento simples (montagem de linhas, normalização)
-        |
-        v
-   [Resposta JSON: texto transcrito + confiança]
-```
+- ✅ Extração de texto de redações manuscritas via OCR
+- ✅ Correção automática seguindo as 5 competências do ENEM
+- ✅ Avaliação detalhada com notas (0-200 por competência, 0-1000 total)
+- ✅ Justificativas baseadas no texto do aluno
+- ✅ Sugestões práticas de melhoria
+- ✅ Recomendações de material de apoio
 
-Componentes principais:
-- **API (FastAPI)**: rota única `/analyze` que orquestra o pipeline.
-- **Pré-processamento de imagem**: deskew, crop, contraste, redução de ruído, binarização, redimensionamento, normalização para o modelo.
-- **OCR (TrOCR)**: inferência com TrOCR adaptado para manuscrito; preferir modelo menor e quantizado para CPU.
-- **Montagem de texto**: combina linhas extraídas e normaliza espaços.
-- **Armazenamento local**: manter resultados e logs localmente (arquivos texto e imagens processadas).
+## 🛠️ Tecnologias Utilizadas
 
----
+- **Streamlit**: Framework para interface web
+- **olmOCR-2-7B-1025-FP8**: Modelo de OCR desenvolvido pela AllenAI para extração de texto manuscrito
+- **Google Gemini 2.5 Flash Lite**: Modelo de linguagem para correção de redações
+- **PyTorch**: Framework de deep learning
+- **Transformers**: Biblioteca Hugging Face para modelos de IA
+- **Pillow**: Processamento de imagens
 
-## Fluxo de dados detalhado
-1. Cliente envia imagem (JPEG/PNG/PDF página única) via POST.
-2. API valida imagem (tamanho, tipo). Armazena temporariamente em disco local.
-3. Pré-processador corrige orientação, remove ruído, aplica binarização adaptativa e normaliza resolução.
-4. Segmentação: extrai linhas (opcional). Produz imagens por linha para passar ao OCR.
-5. OCR: inferência linha-a-linha com TrOCR.
-6. Pós-processamento: junta linhas, corrige espaços.
-7. Resposta: texto OCR e nível de confiança por linha/palavra.
+## 📦 Requisitos do Sistema
 
----
+### Hardware
 
-## Estrutura de pastas (sugestão)
-```
-tcc-enem/
-├─ app/
-│  ├─ main.py                # FastAPI app + endpoints
-│  ├─ api/
-│  │  ├─ endpoints.py        # endpoints principais
-│  ├─ core/
-│  │  ├─ config.py           # configurações (paths, model)
-│  │  ├─ logger.py
-│  ├─ ocr/
-│  │  ├─ trocr_infer.py      # wrapper de inferência (ONNX/Torch)
-│  │  ├─ model_load.py
-│  ├─ preprocess/
-│  │  ├─ image_utils.py      # deskew, denoise, binarize, resize
-│  │  ├─ segmentation.py     # split lines/words (opcional)
-│  ├─ schemas.py             # pydantic request/response models
-│  ├─ tests/
-├─ models/                   # pesos ONNX, vocabulários
-├─ data/                     # imagens de teste e saídas locais
-├─ notebooks/                # experimentos e visualização
-├─ requirements.txt
-├─ README.md
+- **RAM**: Mínimo 8GB (recomendado 16GB+)
+- **Espaço em disco**: ~20GB para cache do modelo OCR
+- **GPU**: Opcional, mas recomendada (NVIDIA CUDA ou Apple MPS)
+  - Sem GPU: processamento em CPU (mais lento, ~1-2 minutos por redação)
+  - Com GPU: processamento mais rápido (~20-40 segundos por redação)
+
+### Software
+
+- Python 3.8 ou superior
+- pip (gerenciador de pacotes Python)
+
+## 🚀 Instalação
+
+### 1. Clone o repositório
+
+```bash
+git clone <url-do-repositorio>
+cd LexAI
 ```
 
----
+### 2. Crie um ambiente virtual (recomendado)
 
-## API — Endpoints sugeridos
-**POST /analyze**
-- Entrada: multipart/form-data { image: file }
-- Saída JSON:
-  - `ocr_text` (string)
-  - `ocr_by_line` (array de {line_idx, text, confidence})
+**Windows:**
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
 
-**POST /ocr**
-- Faz só OCR e retorna `ocr_by_line`.
+**Linux/Mac:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
 
-**GET /health**
-- Retorna status da API e se o modelo está carregado.
+### 3. Instale as dependências
 
----
+```bash
+pip install -r requirements.txt
+```
 
-## Pré-processamento de imagens (detalhado)
-1. **Load & Normalize**: abrir imagem, converter para grayscale.
-2. **Orientation/deskew**: detectar rotação e corrigir.
-3. **Denoise**: filtro leve para reduzir ruído mantendo traços.
-4. **Binarização adaptativa**: melhora contraste.
-5. **Resize**: redimensionar mantendo aspecto para o tamanho de entrada do modelo.
-6. **Segmentação de linhas**: opcional, caso queira melhorar performance.
+**Nota:** A primeira instalação pode levar alguns minutos devido ao tamanho das bibliotecas.
 
----
+### 4. Obtenha sua API Key do Google Gemini
 
-## OCR — TrOCR (implementação & otimizações CPU)
-- Usar implementação HuggingFace (transformers + vision).
-- Preferir modelos menores (ex.: `microsoft/trocr-small-handwritten`).
-- **Fine-tuning**: se necessário, em manuscritos em português.
-- **Conversão ONNX**: exportar para `onnxruntime` com quantização INT8.
-- **Batching por linha**: inferir múltiplas linhas por batch.
+1. Acesse: https://makersuite.google.com/app/apikey
+2. Crie uma conta ou faça login
+3. Gere uma nova API Key
+4. Copie a chave (você precisará dela ao executar a aplicação)
 
----
+## 🎯 Como Usar
 
-## Dados e fine-tuning
-- **Dados manuscritos**: coletar amostras em português (se não houver, criar dataset sintético).
-- **Anotações**: texto transcrito ground-truth.
-- **Split**: treino / validação / teste.
-- Avaliar qualidade por CER (Character Error Rate) e WER (Word Error Rate) durante desenvolvimento.
+### 1. Iniciar a aplicação
 
----
+```bash
+streamlit run app.py
+```
 
-## Deployment
-- Executar localmente via `uvicorn`.
-- Configurações simples via `.env`.
-- Logs e resultados armazenados em pastas locais.
+A aplicação será aberta automaticamente no seu navegador (geralmente em `http://localhost:8501`).
 
----
+### 2. Configurar API Key
 
-## Plano de implementação — passos práticos
-1. **MVP (2–3 semanas)**
-   - Criar API FastAPI básica.
-   - Implementar pré-processamento mínimo (resize, grayscale, deskew simples).
-   - Integrar TrOCR com HuggingFace em CPU e inferir em uma imagem.
-   - Salvar saídas localmente.
+1. Na sidebar (barra lateral), insira sua **API Key do Google Gemini**
+2. A chave será armazenada apenas na sessão atual
 
-2. **Melhorias (2–4 semanas)**
-   - Converter modelo para ONNX e quantizar.
-   - Implementar segmentação de linhas.
-   - Ajustar heurísticas de pós-processamento.
+### 3. Processar uma redação
 
----
+1. **Faça upload da imagem** da redação manuscrita (formatos: PNG, JPG, JPEG)
+2. Verifique o preview da imagem
+3. Clique em **"Processar Redação"**
+4. Aguarde o processamento:
+   - **Primeira vez**: O modelo OCR será baixado (~15-20GB) - pode levar vários minutos
+   - **Processamento OCR**: ~20-40 segundos (CPU) ou ~10-20 segundos (GPU)
+   - **Correção Gemini**: ~10-15 segundos
 
-## Tecnologias / Bibliotecas sugeridas
-- Python 3.11+
-- FastAPI (API)
-- Uvicorn
-- OpenCV, Pillow, NumPy (pré-process)
-- Transformers (HuggingFace) / torch (pytorch)
-- onnx + onnxruntime (inference otimizada CPU)
-- pytest (testes)
+### 4. Visualizar resultados
 
----
+- **Texto Extraído (OCR)**: Clique no expander para ver o texto extraído da imagem
+- **Correção ENEM**: Visualize a correção completa com:
+  - Notas por competência
+  - Justificativas detalhadas
+  - Nota final
+  - Sugestões de melhoria
 
-## Riscos e Considerações
-- **Qualidade dos dados**: OCR depende fortemente da qualidade dos manuscritos usados para treino/fine-tuning.
-- **Idioma**: modelos pré-treinados podem não capturar vocabulário específico do ENEM.
-- **Privacidade**: armazenar localmente com cuidado para não expor redações.
+## 📁 Estrutura do Projeto
 
----
+```
+LexAI/
+├── app.py                 # Aplicação principal Streamlit
+├── requirements.txt       # Dependências do projeto
+├── README.md             # Este arquivo
+├── .gitignore            # Arquivos ignorados pelo Git
+```
+
+### Detecção automática de dispositivo
+
+A aplicação detecta automaticamente o melhor dispositivo disponível:
+- **CUDA**: GPU NVIDIA (mais rápido)
+- **MPS**: GPU Apple Silicon (Mac com chip M1/M2/M3)
+- **CPU**: Processamento em CPU (funciona em qualquer sistema, mais lento)
+
+
+## 📊 Sobre o Modelo OCR
+
+O **olmOCR-2-7B-1025-FP8** é um modelo de OCR de última geração desenvolvido pela AllenAI:
+
+- **Baseado em**: Qwen2.5-VL-7B-Instruct
+- **Treinado com**: olmOCR-mix-1025 dataset
+- **Otimizado para**: Texto manuscrito e documentos
+- **Tamanho**: ~15-20GB (quantizado em FP8)
+- **Performance**: Alta precisão em texto manuscrito
+
+**Referências:**
+- [Modelo no Hugging Face](https://huggingface.co/allenai/olmOCR-2-7B-1025-FP8)
+- [Repositório GitHub](https://github.com/allenai/olmocr)
+
+## 📝 Sobre a Correção ENEM
+
+A correção segue rigorosamente as **5 competências do ENEM**:
+
+1. **Competência 1**: Demonstrar domínio da modalidade escrita formal da Língua Portuguesa
+2. **Competência 2**: Compreender a proposta de redação e aplicar conceitos das várias áreas de conhecimento
+3. **Competência 3**: Selecionar, relacionar, organizar e interpretar informações, fatos, opiniões e argumentos
+4. **Competência 4**: Demonstrar conhecimento dos mecanismos linguísticos necessários para a construção da argumentação
+5. **Competência 5**: Elaborar proposta de intervenção para o problema abordado
+
+Cada competência é avaliada de 0 a 200 pontos, totalizando 1000 pontos.
+
+## 👥 Autores
+
+Enzo Fávaro - 22.00774-0
+Iago Aurichio - 21.00236-3
+
+Desenvolvido como trabalho final para MIN709 - Aplicações em Ciência de Dados. - IMT
+
+## 🙏 Agradecimentos
+
+- **AllenAI** pelo modelo olmOCR
+- **Google** pelo modelo Gemini
+- **Hugging Face** pela infraestrutura de modelos
+
 
