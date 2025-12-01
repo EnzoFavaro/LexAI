@@ -158,6 +158,7 @@ Cada competência é avaliada de 0 a 200 pontos, totalizando 1000 pontos.
 ## 👥 Autores
 
 Enzo Fávaro - 22.00774-0
+
 Iago Aurichio - 21.00236-3
 
 Desenvolvido como trabalho final para MIN709 - Aplicações em Ciência de Dados. - IMT
